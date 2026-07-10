@@ -5,13 +5,10 @@
   "private": false,
   "type": "module",
   "bin": {
-    "tome": "./dist/cli/index.js"
+    "tome": "dist/cli/index.js"
   },
   "files": [
-    "dist",
-    "public",
-    "README.md",
-    "package.json"
+    "dist"
   ],
   "repository": {
     "type": "git",
@@ -24,29 +21,33 @@
     "reader",
     "cli"
   ],
-  "author": "",
+  "author": "Stephen Lumban <stephenlumban@gmail.com>",
   "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json && vite build",
     "dev": "tsx src/cli/index.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "chokidar": "latest",
-    "open": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-    "react-markdown": "latest",
-    "remark-gfm": "latest",
-    "shiki": "latest"
+    "chokidar": "^5.0.0",
+    "open": "^11.0.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "shiki": "^4.3.1"
   },
   "devDependencies": {
-    "@types/node": "latest",
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
+    "@types/node": "^26.1.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
-    "tsx": "latest",
-    "typescript": "latest",
+    "tsx": "^4.23.0",
+    "typescript": "^7.0.2",
     "vite": "^8.1.4"
   }
 }
