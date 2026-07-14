@@ -4,7 +4,7 @@ import type { TomeOptions } from '../shared/types.js';
 
 export function parseArgs(argv: string[]): TomeOptions {
   const file = positional(argv);
-  if (!file) fail('Usage: tome <file.md> [--mode pages|scroll] [--theme light|dark|system] [--port 4321] [--no-open]');
+  if (!file) fail('Usage: tome <file.md|directory> [--mode pages|scroll] [--theme light|dark|system] [--port 4321] [--no-open]');
 
   const options: TomeOptions = {
     file: resolve(file),
@@ -17,9 +17,11 @@ export function parseArgs(argv: string[]): TomeOptions {
   if (!['pages', 'scroll'].includes(options.mode)) fail('--mode must be pages or scroll');
   if (!['light', 'dark', 'system'].includes(options.theme)) fail('--theme must be light, dark, or system');
   if (!Number.isInteger(options.port) || options.port < 1) fail('--port must be a positive number');
-  if (!existsSync(options.file)) fail(`File not found: ${options.file}`);
-  if (!statSync(options.file).isFile()) fail(`Not a file: ${options.file}`);
-  if (!['.md', '.markdown'].includes(extname(options.file).toLowerCase())) fail('Unsupported extension. Use .md or .markdown');
+  if (!existsSync(options.file)) fail(`Not found: ${options.file}`);
+
+  const stats = statSync(options.file);
+  if (stats.isFile() && !['.md', '.markdown'].includes(extname(options.file).toLowerCase())) fail('Unsupported extension. Use .md or .markdown');
+  if (!stats.isFile() && !stats.isDirectory()) fail(`Not a file or directory: ${options.file}`);
 
   return options;
 }

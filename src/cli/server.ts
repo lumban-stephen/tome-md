@@ -1,23 +1,24 @@
-import { createReadStream, existsSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
+import { createReadStream, existsSync, statSync } from 'node:fs';
+import { readFile, readdir, stat } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { basename, dirname, extname, join, relative, resolve as resolvePath, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { paginate } from '../parser/paginator.js';
-import type { TomeOptions } from '../shared/types.js';
+import type { TomeEntry, TomeIndexEntry, TomeOptions } from '../shared/types.js';
 
 const clients = new Set<ServerResponse>();
+const IGNORED_DIRS = new Set(['node_modules', '.git', 'dist']);
 
 export async function startServer(options: TomeOptions) {
   const root = fileURLToPath(new URL('../renderer', import.meta.url));
   if (!existsSync(join(root, 'index.html'))) throw new Error('Renderer build not found. Run `npm run build` first.');
 
-  const docRoot = dirname(options.file);
+  const docRoot = statSync(options.file).isDirectory() ? options.file : dirname(options.file);
 
   const server = createServer(async (req, res) => {
     try {
       const url = new URL(req.url ?? '/', 'http://localhost');
-      if (url.pathname === '/api/document') return json(res, await document(docRoot, options.file, url.searchParams.get('path')));
+      if (url.pathname === '/api/document') return json(res, await resolveEntry(docRoot, options.file, url.searchParams.get('path')));
       if (url.pathname === '/api/highlight' && req.method === 'POST') return json(res, { html: await highlight(await body(req)) });
       if (url.pathname === '/api/events') return events(res);
       serve(root, url.pathname, res);
@@ -42,11 +43,48 @@ export async function startServer(options: TomeOptions) {
   };
 }
 
-async function document(docRoot: string, initialFile: string, requestedPath: string | null) {
-  const target = requestedPath ? resolveWithinRoot(docRoot, requestedPath) : initialFile;
-  const markdown = await readFile(target, 'utf8');
+async function resolveEntry(docRoot: string, initialEntry: string, requestedPath: string | null): Promise<TomeEntry> {
+  const target = requestedPath ? resolveWithinRoot(docRoot, requestedPath) : initialEntry;
+  const stats = await stat(target);
   const path = relative(docRoot, target).split(sep).join('/');
-  return { fileName: basename(target), path, markdown, pages: paginate(markdown) };
+
+  if (stats.isDirectory()) {
+    const entries = await listMarkdownFiles(docRoot, target);
+    return { kind: 'index', path, dirName: basename(target), entries };
+  }
+
+  if (!['.md', '.markdown'].includes(extname(target).toLowerCase())) {
+    throw new Error('Only Markdown files can be opened.');
+  }
+
+  const markdown = await readFile(target, 'utf8');
+  return { kind: 'document', fileName: basename(target), path, markdown, pages: paginate(markdown) };
+}
+
+async function listMarkdownFiles(root: string, dir: string): Promise<TomeIndexEntry[]> {
+  const entries = await readdir(dir, { withFileTypes: true });
+  const files: TomeIndexEntry[] = [];
+
+  for (const entry of entries) {
+    if (entry.name.startsWith('.') || IGNORED_DIRS.has(entry.name)) continue;
+    const full = join(dir, entry.name);
+
+    if (entry.isDirectory()) {
+      files.push(...(await listMarkdownFiles(root, full)));
+    } else if (entry.isFile() && ['.md', '.markdown'].includes(extname(entry.name).toLowerCase())) {
+      const markdown = await readFile(full, 'utf8');
+      files.push({
+        path: relative(root, full).split(sep).join('/'),
+        title: firstHeading(markdown) ?? basename(entry.name, extname(entry.name))
+      });
+    }
+  }
+
+  return files.sort((a, b) => a.path.localeCompare(b.path));
+}
+
+function firstHeading(markdown: string): string | undefined {
+  return /^#{1,2}\s+(.+)$/m.exec(markdown)?.[1]?.trim();
 }
 
 function resolveWithinRoot(root: string, requested: string) {
@@ -55,10 +93,7 @@ function resolveWithinRoot(root: string, requested: string) {
   if (resolved !== normalizedRoot && !resolved.startsWith(normalizedRoot + sep)) {
     throw new Error('That link points outside the served folder.');
   }
-  if (!['.md', '.markdown'].includes(extname(resolved).toLowerCase())) {
-    throw new Error('Only Markdown files can be opened.');
-  }
-  if (!existsSync(resolved)) throw new Error(`File not found: ${requested}`);
+  if (!existsSync(resolved)) throw new Error(`Not found: ${requested}`);
   return resolved;
 }
 

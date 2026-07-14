@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Mode, TomeDocument } from '../shared/types';
+import type { Mode, TomeEntry } from '../shared/types';
 import { resolveRelativePath } from '../shared/links';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { DirectoryIndex } from './components/DirectoryIndex';
 import { Pagination } from './components/Pagination';
 import { Sidebar } from './components/Sidebar';
 
@@ -11,9 +12,11 @@ export function App() {
   const params = new URLSearchParams(location.search);
   const mode = (params.get('mode') === 'scroll' ? 'scroll' : 'pages') as Mode;
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const [doc, setDoc] = useState<TomeDocument | null>(null);
+  const [entry, setEntry] = useState<TomeEntry | null>(null);
   const [page, setPage] = useState(0);
   const pathRef = useRef<string | undefined>(undefined);
+
+  const doc = entry?.kind === 'document' ? entry : null;
 
   async function load(path?: string, options: { replace?: boolean } = {}) {
     const query = path ? `?path=${encodeURIComponent(path)}` : '';
@@ -24,14 +27,14 @@ export function App() {
       return;
     }
 
-    const nextDoc = data as TomeDocument;
-    pathRef.current = nextDoc.path;
-    setDoc(nextDoc);
+    const next = data as TomeEntry;
+    pathRef.current = next.path;
+    setEntry(next);
     setPage(0);
 
     const url = new URL(location.href);
-    url.searchParams.set('doc', nextDoc.path);
-    const state = { path: nextDoc.path };
+    url.searchParams.set('doc', next.path);
+    const state = { path: next.path };
     if (options.replace) history.replaceState(state, '', url);
     else history.pushState(state, '', url);
   }
@@ -95,22 +98,36 @@ export function App() {
     return mode === 'scroll' ? doc.markdown : doc.pages[page]?.content ?? '';
   }, [doc, mode, page]);
 
-  if (!doc) return <main className="loading">Opening Tome…</main>;
+  if (!entry) return <main className="loading">Opening Tome…</main>;
 
-  const progress = mode === 'scroll' ? 100 : Math.round(((page + 1) / doc.pages.length) * 100);
-  const title = mode === 'pages' ? doc.pages[page]?.title : 'Scroll mode';
+  if (entry.kind === 'index') {
+    return (
+      <div className="shell no-sidebar">
+        <main className="reader">
+          <header className="reader-header">
+            <p className="eyebrow">Directory</p>
+            <h1 className="page-title">{entry.dirName}</h1>
+          </header>
+          <DirectoryIndex entries={entry.entries} onOpen={(path) => load(path)} />
+        </main>
+      </div>
+    );
+  }
+
+  const progress = mode === 'scroll' ? 100 : Math.round(((page + 1) / entry.pages.length) * 100);
+  const title = mode === 'pages' ? entry.pages[page]?.title : 'Scroll mode';
 
   return (
     <div className="shell">
-      <Sidebar pages={doc.pages} active={page} onSelect={setPage} mode={mode} theme={theme} progress={progress} onTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')} />
+      <Sidebar pages={entry.pages} active={page} onSelect={setPage} mode={mode} theme={theme} progress={progress} onTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')} />
       <main className="reader">
         <header className="reader-header">
-          <p className="eyebrow">{doc.fileName}</p>
+          <p className="eyebrow">{entry.fileName}</p>
           <h1 className="page-title">{title}</h1>
           <div className="progress"><span style={{ width: `${progress}%` }} /></div>
         </header>
         <MarkdownRenderer markdown={markdown} onNavigate={onNavigate} />
-        {mode === 'pages' && <Pagination page={page} total={doc.pages.length} onPage={setPage} />}
+        {mode === 'pages' && <Pagination page={page} total={entry.pages.length} onPage={setPage} />}
       </main>
     </div>
   );
