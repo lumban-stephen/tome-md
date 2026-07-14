@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   folder/file icons instead of a plain code block.
 - Live reload now watches the entire directory of the opened file, so
   edits to any linked document trigger a refresh, not just the initial file.
+- `tome <directory>` opens a table of every Markdown file found recursively
+  in that directory, with titles derived from each file's first heading.
+  Clicking a row opens the document in place.
 
 ## [0.1.0] - 2026-07-10
 

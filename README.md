@@ -34,11 +34,12 @@ That's it. Your default browser opens with your document beautifully rendered.
 - **✨ Real syntax highlighting** — code blocks rendered with [Shiki](https://shiki.style), the same highlighter that powers VS Code.
 - **📋 GitHub-flavored Markdown** — tables, task lists, strikethrough, and autolinks all work.
 - **🔒 Local-first** — a tiny server bound to `127.0.0.1`. Your files never leave your machine, and your original Markdown is never touched.
+- **🔗 Linked docs** — relative Markdown links open in place, and pointing Tome at a directory gives you a browsable table of every `.md` file inside it.
 
 ## Usage
 
 ```bash
-tome <file.md> [options]
+tome <file.md|directory> [options]
 ```
 
 | Option | Values | Default | Description |
@@ -55,6 +56,7 @@ tome docs/spec.md                    # paged mode, system theme
 tome docs/spec.md --mode scroll      # one continuous page
 tome notes.md --theme dark           # force dark mode
 tome README.md --port 8080 --no-open # serve only, open manually
+tome docs                            # browse every .md file in docs/
 ```
 
 ### Keyboard shortcuts
