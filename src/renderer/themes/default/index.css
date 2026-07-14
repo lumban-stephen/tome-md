@@ -228,6 +228,25 @@ button { font: inherit; }
 }
 .code-card pre { margin: 0; padding: 18px; overflow: auto; }
 
+.file-tree {
+  margin: 32px 0;
+  padding: 18px 22px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--card);
+  box-shadow: 0 14px 44px var(--shadow);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 14px;
+  overflow-x: auto;
+}
+.file-tree ul { list-style: none; margin: 0; padding-left: 20px; }
+.file-tree > ul { padding-left: 0; }
+.file-tree li { position: relative; padding: 3px 0; }
+.file-tree ul ul { border-left: 1px dashed var(--border); }
+.file-tree-dir, .file-tree-file { display: inline-flex; align-items: center; gap: 6px; color: var(--card-foreground); }
+.file-tree-dir { color: var(--foreground); font-weight: 600; }
+.file-tree-icon { font-size: 13px; }
+
 .pagination {
   position: sticky;
   bottom: 18px;

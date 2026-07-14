@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Mode, TomeDocument } from '../shared/types';
+import { resolveRelativePath } from '../shared/links';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { Pagination } from './components/Pagination';
 import { Sidebar } from './components/Sidebar';
@@ -12,17 +13,50 @@ export function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [doc, setDoc] = useState<TomeDocument | null>(null);
   const [page, setPage] = useState(0);
+  const pathRef = useRef<string | undefined>(undefined);
 
-  async function load() {
-    const response = await fetch('/api/document');
-    setDoc(await response.json());
+  async function load(path?: string, options: { replace?: boolean } = {}) {
+    const query = path ? `?path=${encodeURIComponent(path)}` : '';
+    const response = await fetch(`/api/document${query}`);
+    const data = await response.json();
+    if (!response.ok) {
+      console.error(data.error ?? 'Unable to load document');
+      return;
+    }
+
+    const nextDoc = data as TomeDocument;
+    pathRef.current = nextDoc.path;
+    setDoc(nextDoc);
+    setPage(0);
+
+    const url = new URL(location.href);
+    url.searchParams.set('doc', nextDoc.path);
+    const state = { path: nextDoc.path };
+    if (options.replace) history.replaceState(state, '', url);
+    else history.pushState(state, '', url);
+  }
+
+  function onNavigate(href: string) {
+    const current = pathRef.current;
+    if (!current) return;
+    load(resolveRelativePath(current, href));
   }
 
   useEffect(() => {
-    load();
+    load(params.get('doc') ?? undefined, { replace: true });
+
     const events = new EventSource('/api/events');
-    events.addEventListener('reload', load);
+    events.addEventListener('reload', () => load(pathRef.current, { replace: true }));
     return () => events.close();
+  }, []);
+
+  useEffect(() => {
+    function onPopState() {
+      const target = new URLSearchParams(location.search).get('doc');
+      load(target ?? undefined, { replace: true });
+    }
+    addEventListener('popstate', onPopState);
+    return () => removeEventListener('popstate', onPopState);
   }, []);
 
   useEffect(() => {
@@ -75,7 +109,7 @@ export function App() {
           <h1 className="page-title">{title}</h1>
           <div className="progress"><span style={{ width: `${progress}%` }} /></div>
         </header>
-        <MarkdownRenderer markdown={markdown} />
+        <MarkdownRenderer markdown={markdown} onNavigate={onNavigate} />
         {mode === 'pages' && <Pagination page={page} total={doc.pages.length} onPage={setPage} />}
       </main>
     </div>

@@ -16,6 +16,8 @@ export type TomePage = {
 
 export type TomeDocument = {
   fileName: string;
+  /** Path relative to the served root directory, posix-separated. Used to resolve links between documents. */
+  path: string;
   markdown: string;
   pages: TomePage[];
 };

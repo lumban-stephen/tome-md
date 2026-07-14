@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import chokidar from 'chokidar';
 import open from 'open';
+import { dirname, extname } from 'node:path';
 import { parseArgs } from './args.js';
 import { startServer } from './server.js';
 
@@ -8,7 +9,12 @@ async function main() {
   try {
     const options = parseArgs(process.argv.slice(2));
     const server = await startServer(options);
-    chokidar.watch(options.file, { ignoreInitial: true }).on('change', server.reload);
+    const docRoot = dirname(options.file);
+    chokidar
+      .watch(docRoot, { ignoreInitial: true, ignored: /(^|[/\\])(node_modules|\.git|dist)([/\\]|$)/ })
+      .on('all', (_event, path) => {
+        if (['.md', '.markdown'].includes(extname(path).toLowerCase())) server.reload();
+      });
 
     console.log(`Tome reading ${options.file}`);
     console.log(server.url);
